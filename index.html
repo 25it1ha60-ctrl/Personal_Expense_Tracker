@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Expense Tracker | Financial Management Dashboard</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- App Container -->
+    <div class="app-layout">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-logo">
+                    <div class="logo-icon">
+                        <i class="fa-solid fa-wallet"></i>
+                    </div>
+                    <div class="brand-text">
+                        <h2>Expenzo</h2>
+                        <span class="brand-sub">B.Tech IT Project</span>
+                    </div>
+                </div>
+                <button class="btn-icon mobile-close-sidebar" id="closeSidebarBtn" aria-label="Close sidebar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Database Status Indicator -->
+            <div class="db-status-chip" id="dbStatusChip" title="MySQL Database Connection Status">
+                <span class="status-dot pulsing" id="dbStatusDot"></span>
+                <span class="status-text" id="dbStatusText">Checking MySQL...</span>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">MAIN MENU</div>
+                <ul class="nav-links">
+                    <li>
+                        <a href="#dashboard" class="nav-item active" data-tab="dashboard">
+                            <i class="fa-solid fa-chart-line"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#add-expense" class="nav-item" data-tab="add-expense">
+                            <i class="fa-solid fa-circle-plus"></i>
+                            <span>Add Expense</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#history" class="nav-item" data-tab="history">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span>Expense History</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#analytics" class="nav-item" data-tab="analytics">
+                            <i class="fa-solid fa-chart-pie"></i>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#budgets" class="nav-item" data-tab="budgets">
+                            <i class="fa-solid fa-bullseye"></i>
+                            <span>Budget Tracker</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Quick Action Card in Sidebar -->
+            <div class="sidebar-quick-card">
+                <div class="quick-card-icon">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <h4>MySQL Backend</h4>
+                <p>Connected to <code>expense_tracker</code></p>
+                <button class="btn btn-primary-sm" onclick="switchTab('add-expense')">
+                    <i class="fa-solid fa-plus"></i> New Expense
+                </button>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="sidebar-footer">
+                <div class="tech-badge">
+                    <span>Flask</span> &bull; <span>MySQL</span> &bull; <span>Chart.js</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- Top Navigation Bar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="btn-icon mobile-menu-btn" id="openSidebarBtn" aria-label="Open sidebar">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="page-title-box">
+                        <h1 id="pageTitle">Dashboard</h1>
+                        <p id="pageSubtitle">Real-time overview of your personal financial spending</p>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <!-- Live Date Display -->
+                    <div class="date-badge">
+                        <i class="fa-regular fa-calendar-days"></i>
+                        <span id="liveDateDisplay">Loading date...</span>
+                    </div>
+
+                    <!-- Theme Toggle -->
+                    <button class="btn-icon theme-toggle" id="themeToggleBtn" title="Toggle Light / Dark Mode">
+                        <i class="fa-solid fa-moon" id="themeIcon"></i>
+                    </button>
+
+                    <!-- Add Expense CTA -->
+                    <button class="btn btn-accent" onclick="switchTab('add-expense')">
+                        <i class="fa-solid fa-plus"></i>
+                        <span class="btn-text">Add Expense</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Offline / Connection Alert Banner -->
+            <div class="db-alert-banner" id="dbAlertBanner" style="display: none;">
+                <div class="alert-content">
+                    <i class="fa-solid fa-triangle-exclamation alert-icon"></i>
+                    <div>
+                        <strong>MySQL Connection Issue:</strong>
+                        <span id="dbAlertMessage">Cannot reach MySQL database. Ensure MySQL service is running and .env credentials are set.</span>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline" onclick="checkHealth()">
+                    <i class="fa-solid fa-rotate-right"></i> Retry
+                </button>
+            </div>
+
+            <!-- Page Sections Container -->
+            <div class="content-container">
+
+                <!-- ==================================================== -->
+                <!-- PAGE 1: DASHBOARD VIEW                               -->
+                <!-- ==================================================== -->
+                <section class="tab-view active" id="view-dashboard">
+                    
+                    <!-- KPI Summary Cards Grid -->
+                    <div class="kpi-grid">
+                        <!-- Total Expenses -->
+                        <div class="kpi-card card-gradient-blue">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Total Expenses</span>
+                                <div class="kpi-icon-box bg-blue">
+                                    <i class="fa-solid fa-wallet"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-value" id="kpiTotalExpenses">{{ currency_symbol }}0.00</div>
+                            <div class="kpi-meta">
+                                <span class="meta-label">All-time record across transactions</span>
+                            </div>
+                        </div>
+
+                        <!-- Current Month's Expenses -->
+                        <div class="kpi-card card-gradient-emerald">
+                            <div class="kpi-header">
+                                <span class="kpi-title">This Month's Spending</span>
+                                <div class="kpi-icon-box bg-emerald">
+                                    <i class="fa-solid fa-calendar-check"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-value" id="kpiMonthExpenses">{{ currency_symbol }}0.00</div>
+                            <div class="kpi-meta" id="kpiMonthTrend">
+                                <span class="badge badge-emerald">
+                                    <i class="fa-solid fa-calendar-day"></i> Current Month
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Total Transactions -->
+                        <div class="kpi-card card-gradient-purple">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Total Transactions</span>
+                                <div class="kpi-icon-box bg-purple">
+                                    <i class="fa-solid fa-receipt"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-value" id="kpiTotalTransactions">0</div>
+                            <div class="kpi-meta">
+                                <span class="meta-label">Logged records in MySQL database</span>
+                            </div>
+                        </div>
+
+                        <!-- Highest Spending Category -->
+                        <div class="kpi-card card-gradient-amber">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Top Category</span>
+                                <div class="kpi-icon-box bg-amber">
+                                    <i class="fa-solid fa-crown"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-value" id="kpiHighestCategory">-</div>
+                            <div class="kpi-meta">
+                                <span class="meta-amount" id="kpiHighestCategoryAmount">{{ currency_symbol }}0.00</span>
+                                <span class="meta-sub">highest total spent</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row (Page 1 Requirements: Monthly spending bar chart & Category doughnut chart) -->
+                    <div class="grid-2-col charts-grid">
+                        <!-- Monthly Spending Bar Chart -->
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <i class="fa-solid fa-chart-column card-icon text-indigo"></i>
+                                    <div>
+                                        <h3>Monthly Spending Trend</h3>
+                                        <p class="card-subtitle">Spending comparison across recent months</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="dashboardMonthlyChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Category-wise Spending Doughnut Chart -->
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <i class="fa-solid fa-chart-pie card-icon text-emerald"></i>
+                                    <div>
+                                        <h3>Category-wise Spending</h3>
+                                        <p class="card-subtitle">Proportional breakdown by expense category</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper doughnut-wrapper">
+                                <canvas id="dashboardCategoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Transactions Section -->
+                    <div class="card table-card">
+                        <div class="card-header space-between">
+                            <div class="card-title-group">
+                                <i class="fa-solid fa-clock-rotate-left card-icon text-blue"></i>
+                                <div>
+                                    <h3>Recent Transactions</h3>
+                                    <p class="card-subtitle">Latest recorded entries from your MySQL expenses table</p>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline-sm" onclick="switchTab('history')">
+                                View Full History <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Category</th>
+                                        <th>Description</th>
+                                        <th class="text-right">Amount</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboardRecentTableBody">
+                                    <tr>
+                                        <td colspan="5" class="table-loading">
+                                            <i class="fa-solid fa-spinner fa-spin"></i> Loading recent transactions...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </section>
+
+
+                <!-- ==================================================== -->
+                <!-- PAGE 2: ADD EXPENSE VIEW                             -->
+                <!-- ==================================================== -->
+                <section class="tab-view" id="view-add-expense">
+                    
+                    <div class="form-page-layout">
+                        <!-- Main Add Expense Card -->
+                        <div class="card form-card">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <div class="icon-avatar bg-indigo">
+                                        <i class="fa-solid fa-plus"></i>
+                                    </div>
+                                    <div>
+                                        <h3>Add New Expense</h3>
+                                        <p class="card-subtitle">Enter details to record your transaction in MySQL</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <form id="addExpenseForm" class="expense-entry-form" onsubmit="handleExpenseSubmit(event)">
+                                
+                                <!-- Expense Date -->
+                                <div class="form-group">
+                                    <label for="expenseDate">
+                                        <i class="fa-regular fa-calendar"></i> Expense Date <span class="required">*</span>
+                                    </label>
+                                    <input type="date" id="expenseDate" name="expense_date" class="form-control" required>
+                                </div>
+
+                                <!-- Category Selection -->
+                                <div class="form-group">
+                                    <label for="expenseCategory">
+                                        <i class="fa-solid fa-tags"></i> Category <span class="required">*</span>
+                                    </label>
+                                    <div class="select-wrapper">
+                                        <select id="expenseCategory" name="category" class="form-control" required>
+                                            <option value="" disabled selected>-- Select Spending Category --</option>
+                                            <option value="Food & Dining">🍔 Food & Dining</option>
+                                            <option value="Transportation">🚗 Transportation</option>
+                                            <option value="Shopping">🛍️ Shopping</option>
+                                            <option value="Bills & Utilities">💡 Bills & Utilities</option>
+                                            <option value="Entertainment">🎬 Entertainment</option>
+                                            <option value="Healthcare">💊 Healthcare</option>
+                                            <option value="Education">📚 Education</option>
+                                            <option value="Travel">✈️ Travel</option>
+                                            <option value="Groceries">🛒 Groceries</option>
+                                            <option value="Investment & Savings">📈 Investment & Savings</option>
+                                            <option value="Personal Care">💇 Personal Care</option>
+                                            <option value="Miscellaneous">📦 Miscellaneous</option>
+                                        </select>
+                                    </div>
+                                    <!-- Category Quick Chips -->
+                                    <div class="quick-category-chips">
+                                        <span class="chip-label">Quick select:</span>
+                                        <button type="button" class="category-chip" onclick="selectQuickCategory('Food & Dining')">Food</button>
+                                        <button type="button" class="category-chip" onclick="selectQuickCategory('Transportation')">Transport</button>
+                                        <button type="button" class="category-chip" onclick="selectQuickCategory('Shopping')">Shopping</button>
+                                        <button type="button" class="category-chip" onclick="selectQuickCategory('Bills & Utilities')">Bills</button>
+                                        <button type="button" class="category-chip" onclick="selectQuickCategory('Entertainment')">Entertainment</button>
+                                        <button type="button" class="category-chip" onclick="selectQuickCategory('Education')">Education</button>
+                                    </div>
+                                </div>
+
+                                <!-- Description -->
+                                <div class="form-group">
+                                    <div class="label-with-counter">
+                                        <label for="expenseDescription">
+                                            <i class="fa-solid fa-pencil"></i> Description
+                                        </label>
+                                        <span class="char-counter" id="descCharCounter">0 / 100</span>
+                                    </div>
+                                    <input type="text" id="expenseDescription" name="description" class="form-control" 
+                                           placeholder="e.g. Grocery items, Dinner with colleagues, Metro card recharge"
+                                           maxlength="100" oninput="updateCharCounter(this)">
+                                </div>
+
+                                <!-- Amount -->
+                                <div class="form-group">
+                                    <label for="expenseAmount">
+                                        <i class="fa-solid fa-money-bill-wave"></i> Amount (<span class="currency-tag">{{ currency_symbol }}</span>) <span class="required">*</span>
+                                    </label>
+                                    <div class="input-currency-group">
+                                        <span class="input-currency-symbol">{{ currency_symbol }}</span>
+                                        <input type="number" id="expenseAmount" name="amount" class="form-control currency-input" 
+                                               step="0.01" min="0.01" max="99999999.99" placeholder="0.00" required>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="form-actions">
+                                    <button type="reset" class="btn btn-secondary">
+                                        <i class="fa-solid fa-rotate-left"></i> Reset Form
+                                    </button>
+                                    <button type="submit" class="btn btn-primary" id="saveExpenseBtn">
+                                        <i class="fa-solid fa-floppy-disk"></i> Save Expense
+                                    </button>
+                                </div>
+
+                            </form>
+                        </div>
+
+                        <!-- Information & Tips Aside Card -->
+                        <div class="form-aside">
+                            <div class="card info-card">
+                                <div class="info-card-header">
+                                    <i class="fa-solid fa-lightbulb text-amber"></i>
+                                    <h4>Smart Financial Tips</h4>
+                                </div>
+                                <ul class="tips-list">
+                                    <li>
+                                        <i class="fa-solid fa-check text-emerald"></i>
+                                        <span><strong>50/30/20 Rule:</strong> 50% for Needs, 30% for Wants, 20% for Savings.</span>
+                                    </li>
+                                    <li>
+                                        <i class="fa-solid fa-check text-emerald"></i>
+                                        <span><strong>Categorize Diligently:</strong> Consistent category names make analytics and budget tracking accurate.</span>
+                                    </li>
+                                    <li>
+                                        <i class="fa-solid fa-check text-emerald"></i>
+                                        <span><strong>Instant MySQL Sync:</strong> Every saved record inserts instantly into the MySQL table.</span>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Fast Navigation Box -->
+                            <div class="card banner-card">
+                                <h4>Want to see all your expenses?</h4>
+                                <p>Manage, filter, search, edit, or delete any past entries in the Expense History view.</p>
+                                <button class="btn btn-outline" onclick="switchTab('history')">
+                                    <i class="fa-solid fa-list-check"></i> Go to Expense History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </section>
+
+
+                <!-- ==================================================== -->
+                <!-- PAGE 3: EXPENSE HISTORY VIEW                         -->
+                <!-- ==================================================== -->
+                <section class="tab-view" id="view-history">
+                    
+                    <!-- Filters & Controls Card -->
+                    <div class="card filters-card">
+                        <div class="filters-header">
+                            <div class="filters-title">
+                                <i class="fa-solid fa-filter text-indigo"></i>
+                                <span>Filter & Search Expenses</span>
+                            </div>
+                            <div class="filters-actions">
+                                <button class="btn btn-outline-sm" onclick="exportExpensesCSV()" title="Download CSV Report">
+                                    <i class="fa-solid fa-file-arrow-down"></i> Export to CSV
+                                </button>
+                                <button class="btn btn-ghost-sm" onclick="resetFilters()">
+                                    <i class="fa-solid fa-arrow-rotate-left"></i> Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="filters-grid">
+                            <!-- Search Input -->
+                            <div class="filter-item search-box">
+                                <label for="filterSearch"><i class="fa-solid fa-magnifying-glass"></i> Search</label>
+                                <div class="search-input-wrap">
+                                    <input type="text" id="filterSearch" class="form-control" 
+                                           placeholder="Search description or category..." oninput="debounceFilter()">
+                                </div>
+                            </div>
+
+                            <!-- Category Filter -->
+                            <div class="filter-item">
+                                <label for="filterCategory"><i class="fa-solid fa-tags"></i> Category</label>
+                                <select id="filterCategory" class="form-control" onchange="applyFilters()">
+                                    <option value="All">All Categories</option>
+                                    <option value="Food & Dining">Food & Dining</option>
+                                    <option value="Transportation">Transportation</option>
+                                    <option value="Shopping">Shopping</option>
+                                    <option value="Bills & Utilities">Bills & Utilities</option>
+                                    <option value="Entertainment">Entertainment</option>
+                                    <option value="Healthcare">Healthcare</option>
+                                    <option value="Education">Education</option>
+                                    <option value="Travel">Travel</option>
+                                    <option value="Groceries">Groceries</option>
+                                    <option value="Investment & Savings">Investment & Savings</option>
+                                    <option value="Personal Care">Personal Care</option>
+                                    <option value="Miscellaneous">Miscellaneous</option>
+                                </select>
+                            </div>
+
+                            <!-- Start Date -->
+                            <div class="filter-item">
+                                <label for="filterStartDate"><i class="fa-regular fa-calendar"></i> From Date</label>
+                                <input type="date" id="filterStartDate" class="form-control" onchange="applyFilters()">
+                            </div>
+
+                            <!-- End Date -->
+                            <div class="filter-item">
+                                <label for="filterEndDate"><i class="fa-regular fa-calendar"></i> To Date</label>
+                                <input type="date" id="filterEndDate" class="form-control" onchange="applyFilters()">
+                            </div>
+
+                            <!-- Sort By -->
+                            <div class="filter-item">
+                                <label for="filterSortBy"><i class="fa-solid fa-arrow-down-short-wide"></i> Sort By</label>
+                                <select id="filterSortBy" class="form-control" onchange="applyFilters()">
+                                    <option value="date_desc">Date: Newest First</option>
+                                    <option value="date_asc">Date: Oldest First</option>
+                                    <option value="amount_desc">Amount: Highest First</option>
+                                    <option value="amount_asc">Amount: Lowest First</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Date Preset Badges -->
+                        <div class="date-presets">
+                            <span class="preset-label">Quick filter:</span>
+                            <button type="button" class="preset-badge" onclick="setDatePreset('all')">All Time</button>
+                            <button type="button" class="preset-badge" onclick="setDatePreset('this_month')">This Month</button>
+                            <button type="button" class="preset-badge" onclick="setDatePreset('last_30')">Last 30 Days</button>
+                            <button type="button" class="preset-badge" onclick="setDatePreset('this_year')">This Year</button>
+                        </div>
+                    </div>
+
+                    <!-- Expenses History Table Card -->
+                    <div class="card table-card">
+                        <div class="card-header space-between">
+                            <div class="card-title-group">
+                                <i class="fa-solid fa-list-check card-icon text-indigo"></i>
+                                <div>
+                                    <h3>Expense Records</h3>
+                                    <p class="card-subtitle" id="historyRecordCount">Showing 0 transactions</p>
+                                </div>
+                            </div>
+                            <div class="table-total-badge">
+                                <span>Filtered Sum:</span>
+                                <strong id="historyFilteredTotal">{{ currency_symbol }}0.00</strong>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="data-table" id="historyTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px;">ID</th>
+                                        <th style="width: 130px;">Date</th>
+                                        <th style="width: 170px;">Category</th>
+                                        <th>Description</th>
+                                        <th class="text-right" style="width: 140px;">Amount</th>
+                                        <th class="text-center" style="width: 120px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <tr>
+                                        <td colspan="6" class="table-loading">
+                                            <i class="fa-solid fa-spinner fa-spin"></i> Loading expenses from database...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </section>
+
+
+                <!-- ==================================================== -->
+                <!-- PAGE 4: ANALYTICS VIEW                               -->
+                <!-- ==================================================== -->
+                <section class="tab-view" id="view-analytics">
+                    
+                    <!-- Analytics KPI Row -->
+                    <div class="kpi-grid analytics-kpis">
+                        <div class="kpi-card card-gradient-indigo">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Average Spending</span>
+                                <div class="kpi-icon-box bg-indigo">
+                                    <i class="fa-solid fa-calculator"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-value" id="analyticsAvgSpend">{{ currency_symbol }}0.00</div>
+                            <div class="kpi-meta"><span class="meta-label">Per recorded transaction</span></div>
+                        </div>
+
+                        <div class="kpi-card card-gradient-rose">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Highest Single Expense</span>
+                                <div class="kpi-icon-box bg-rose">
+                                    <i class="fa-solid fa-fire"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-value" id="analyticsMaxExpense">{{ currency_symbol }}0.00</div>
+                            <div class="kpi-meta"><span class="meta-label">Largest individual expense</span></div>
+                        </div>
+
+                        <div class="kpi-card card-gradient-cyan">
+                            <div class="kpi-header">
+                                <span class="kpi-title">Lowest Single Expense</span>
+                                <div class="kpi-icon-box bg-cyan">
+                                    <i class="fa-solid fa-tag"></i>
+                                </div>
+                            </div>
+                            <div class="kpi-value" id="analyticsMinExpense">{{ currency_symbol }}0.00</div>
+                            <div class="kpi-meta"><span class="meta-label">Minimum recorded purchase</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Analytics Charts Grid (4 Interactive Visualizations) -->
+                    <div class="analytics-charts-grid">
+                        
+                        <!-- 1. Monthly Spending Trend -->
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <i class="fa-solid fa-chart-column card-icon text-indigo"></i>
+                                    <div>
+                                        <h3>Monthly Spending</h3>
+                                        <p class="card-subtitle">Aggregated expenditures by month</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="analyticsMonthlyChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- 2. Category Distribution -->
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <i class="fa-solid fa-chart-pie card-icon text-emerald"></i>
+                                    <div>
+                                        <h3>Category-wise Spending</h3>
+                                        <p class="card-subtitle">Volume and share per expense category</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper doughnut-wrapper">
+                                <canvas id="analyticsCategoryChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- 3. Spending Trends (Daily / Cumulative Trend) -->
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <i class="fa-solid fa-arrow-trend-up card-icon text-cyan"></i>
+                                    <div>
+                                        <h3>Spending Trends (Last 30 Days)</h3>
+                                        <p class="card-subtitle">Daily expenditure cadence over the past month</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="analyticsDailyChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- 4. Highest Expense Categories Ranked -->
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <div class="card-title-group">
+                                    <i class="fa-solid fa-ranking-star card-icon text-amber"></i>
+                                    <div>
+                                        <h3>Highest Expense Categories</h3>
+                                        <p class="card-subtitle">Categories ranked by total spend</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="analyticsRankedBarChart"></canvas>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Top 5 Largest Expenses Table -->
+                    <div class="card table-card">
+                        <div class="card-header">
+                            <div class="card-title-group">
+                                <i class="fa-solid fa-trophy card-icon text-amber"></i>
+                                <div>
+                                    <h3>Top 5 Highest Expenses</h3>
+                                    <p class="card-subtitle">Your largest transactions across all categories</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>Date</th>
+                                        <th>Category</th>
+                                        <th>Description</th>
+                                        <th class="text-right">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analyticsTopExpensesTableBody">
+                                    <tr>
+                                        <td colspan="5" class="table-loading">Loading top expenses...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </section>
+
+
+                <!-- ==================================================== -->
+                <!-- PAGE 5: BUDGET TRACKER VIEW                          -->
+                <!-- ==================================================== -->
+                <section class="tab-view" id="view-budgets">
+                    
+                    <!-- Budget Overview Hero Banner -->
+                    <div class="card budget-hero-card">
+                        <div class="budget-hero-content">
+                            <div class="budget-hero-left">
+                                <span class="badge badge-indigo">
+                                    <i class="fa-solid fa-calendar"></i> Current Month Budget Plan
+                                </span>
+                                <h2>Monthly Category Budgets</h2>
+                                <p>Set spending targets for each category and track real-time utilization progress.</p>
+                                
+                                <div class="budget-stats-row">
+                                    <div class="b-stat">
+                                        <span class="b-stat-label">Total Allocated</span>
+                                        <span class="b-stat-val text-indigo" id="budgetTotalAllocated">{{ currency_symbol }}0.00</span>
+                                    </div>
+                                    <div class="b-stat">
+                                        <span class="b-stat-label">Total Spent</span>
+                                        <span class="b-stat-val text-amber" id="budgetTotalSpent">{{ currency_symbol }}0.00</span>
+                                    </div>
+                                    <div class="b-stat">
+                                        <span class="b-stat-label">Remaining</span>
+                                        <span class="b-stat-val text-emerald" id="budgetTotalRemaining">{{ currency_symbol }}0.00</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="budget-hero-right">
+                                <button class="btn btn-primary" onclick="openBudgetModal()">
+                                    <i class="fa-solid fa-circle-plus"></i> Set Category Budget
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Category Budget Progress Cards Grid -->
+                    <div class="budget-cards-grid" id="budgetCardsContainer">
+                        <div class="budget-loading">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Loading category budgets...
+                        </div>
+                    </div>
+
+                </section>
+
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL 1: EDIT EXPENSE MODAL                                  -->
+    <!-- ============================================================ -->
+    <div class="modal-overlay" id="editExpenseModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i class="fa-solid fa-pen-to-square text-indigo"></i>
+                    <h3>Edit Expense Record</h3>
+                </div>
+                <button class="btn-icon" onclick="closeEditModal()" aria-label="Close modal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="editExpenseForm" onsubmit="handleExpenseUpdate(event)">
+                <input type="hidden" id="editExpenseId" name="expense_id">
+                
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="editExpenseDate"><i class="fa-regular fa-calendar"></i> Expense Date <span class="required">*</span></label>
+                        <input type="date" id="editExpenseDate" name="expense_date" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editExpenseCategory"><i class="fa-solid fa-tags"></i> Category <span class="required">*</span></label>
+                        <select id="editExpenseCategory" name="category" class="form-control" required>
+                            <option value="Food & Dining">Food & Dining</option>
+                            <option value="Transportation">Transportation</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Bills & Utilities">Bills & Utilities</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Education">Education</option>
+                            <option value="Travel">Travel</option>
+                            <option value="Groceries">Groceries</option>
+                            <option value="Investment & Savings">Investment & Savings</option>
+                            <option value="Personal Care">Personal Care</option>
+                            <option value="Miscellaneous">Miscellaneous</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editExpenseDescription"><i class="fa-solid fa-pencil"></i> Description</label>
+                        <input type="text" id="editExpenseDescription" name="description" class="form-control" maxlength="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editExpenseAmount"><i class="fa-solid fa-money-bill-wave"></i> Amount (<span class="currency-tag">{{ currency_symbol }}</span>) <span class="required">*</span></label>
+                        <input type="number" id="editExpenseAmount" name="amount" class="form-control" step="0.01" min="0.01" max="99999999.99" required>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="updateExpenseBtn">
+                        <i class="fa-solid fa-check"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL 2: DELETE CONFIRMATION MODAL                           -->
+    <!-- ============================================================ -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box modal-box-sm">
+            <div class="modal-header">
+                <div class="modal-title-group text-danger">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <h3>Confirm Deletion</h3>
+                </div>
+                <button class="btn-icon" onclick="closeDeleteModal()" aria-label="Close modal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to permanently delete this expense from the MySQL database?</p>
+                <div class="delete-details-card" id="deleteDetailsBox">
+                    <!-- Populated dynamically -->
+                </div>
+                <p class="text-muted text-sm">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn" onclick="confirmDeleteExpense()">
+                    <i class="fa-solid fa-trash"></i> Delete Expense
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL 3: SET / EDIT BUDGET MODAL                             -->
+    <!-- ============================================================ -->
+    <div class="modal-overlay" id="budgetModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <i class="fa-solid fa-bullseye text-emerald"></i>
+                    <h3 id="budgetModalTitle">Set Category Budget</h3>
+                </div>
+                <button class="btn-icon" onclick="closeBudgetModal()" aria-label="Close modal">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="budgetForm" onsubmit="handleBudgetSubmit(event)">
+                <div class="modal-body">
+                    <p class="modal-desc">Configure a monthly maximum spending budget for this category.</p>
+                    
+                    <div class="form-group">
+                        <label for="budgetCategory"><i class="fa-solid fa-tags"></i> Category <span class="required">*</span></label>
+                        <select id="budgetCategory" name="category" class="form-control" required>
+                            <option value="" disabled selected>-- Select Category --</option>
+                            <option value="Food & Dining">Food & Dining</option>
+                            <option value="Transportation">Transportation</option>
+                            <option value="Shopping">Shopping</option>
+                            <option value="Bills & Utilities">Bills & Utilities</option>
+                            <option value="Entertainment">Entertainment</option>
+                            <option value="Healthcare">Healthcare</option>
+                            <option value="Education">Education</option>
+                            <option value="Travel">Travel</option>
+                            <option value="Groceries">Groceries</option>
+                            <option value="Investment & Savings">Investment & Savings</option>
+                            <option value="Personal Care">Personal Care</option>
+                            <option value="Miscellaneous">Miscellaneous</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="budgetMonthlyLimit"><i class="fa-solid fa-money-bill-trend-up"></i> Monthly Limit (<span class="currency-tag">{{ currency_symbol }}</span>) <span class="required">*</span></label>
+                        <div class="input-currency-group">
+                            <span class="input-currency-symbol">{{ currency_symbol }}</span>
+                            <input type="number" id="budgetMonthlyLimit" name="monthly_limit" class="form-control currency-input" 
+                                   step="1" min="1" max="99999999.99" placeholder="e.g. 5000" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeBudgetModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveBudgetBtn">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Budget
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Global Floating Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Application JavaScript Files -->
+    <script>
+        // Global context configuration injected from Flask
+        window.APP_CONFIG = {
+            currency: "{{ currency_symbol }}",
+            activeTab: "{{ active_tab }}",
+            currentDate: "{{ current_date }}"
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
